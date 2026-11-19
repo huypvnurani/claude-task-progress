@@ -1,6 +1,6 @@
 {
   "name": "task-progress",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shows the current task's progress % above the prompt: main steps split 100%, sub-steps split their parent's share. Multilingual.",
   "types": "./types/index.d.ts",
   "license": "MIT",

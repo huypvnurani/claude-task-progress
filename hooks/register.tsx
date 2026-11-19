@@ -176,6 +176,55 @@ const withList = (p: Progress, agent: string, steps: Step[]): Progress => {
   return { ...p, subs: { ...p.subs, [agent]: { parent, steps } } }
 }
 
+// ---------- Một lần gọi tool → tiến độ mới (dùng cho cả lúc chạy lẫn lúc dựng lại lịch sử) ----------
+
+export type Call = { tool: string; input: Record<string, unknown>; result?: unknown; agent: string; text?: string }
+
+export const TRACKED = new Set(['TodoWrite', 'TaskCreate', 'TaskUpdate', PLAN_TOOL, WRAP_TOOL])
+
+export const applyCall = (p: Progress, c: Call): Progress => {
+  const { tool, input, agent } = c
+  const pre = agent === MAIN ? '' : `${agent}:`
+  if (tool === 'TodoWrite' && Array.isArray(input.todos)) {
+    const steps = input.todos.map((t: any, i: number) => ({ id: `${pre}todo-${i}`, title: String(t?.content ?? ''), status: asStatus(t?.status) }))
+    return withList(p, agent, steps)
+  }
+  if (tool === 'TaskCreate') {
+    const r = c.result as { task?: { id?: string } } | undefined
+    // Lịch sử có thể không lưu bản ghi kết quả: lấy số task từ chữ "Task #3 created".
+    const fromText = c.text?.match(/#(\d+)/)?.[1]
+    const id = `${pre}${r?.task?.id ?? fromText ?? Date.now()}`
+    const base = agent === MAIN && summarize(p).percent >= 100 ? EMPTY : p
+    return withList(base, agent, [...listOf(base, agent), { id, title: String(input.subject ?? ''), status: 'pending' }])
+  }
+  if (tool === 'TaskUpdate') {
+    const id = `${pre}${String(input.taskId)}`
+    const status = input.status as string | undefined
+    const subject = input.subject as string | undefined
+    const list = listOf(p, agent)
+    const steps =
+      status === 'deleted'
+        ? list.filter(s => s.id !== id)
+        : list.map(s => (s.id === id ? { ...s, title: subject ?? s.title, status: status ? asStatus(status) : s.status } : s))
+    return withList(p, agent, steps)
+  }
+  if (tool === WRAP_TOOL && agent === MAIN) return finish(p)
+  if (tool === PLAN_TOOL) return withList(p, agent, applyPlan(listOf(p, agent), input, pre))
+  return p
+}
+
+/** Dựng lại tiến độ từ lịch sử của luồng chính (session mở lại, hoặc mod cài sau khi task đã chạy). */
+export const replay = (messages: readonly { toolUses?: readonly { tool: string; input: Record<string, unknown>; result?: unknown; text?: string; isError?: boolean }[] }[]): Progress => {
+  let p: Progress = EMPTY
+  for (const m of messages) {
+    for (const u of m.toolUses ?? []) {
+      if (!TRACKED.has(u.tool) || u.isError) continue
+      p = applyCall(p, { tool: u.tool, input: u.input, result: u.result, text: u.text, agent: MAIN })
+    }
+  }
+  return p
+}
+
 /** Lượt hiện tại đã đổi task list chưa. */
 let touched = false
 
@@ -199,7 +248,21 @@ export const register: Register = (on, options) => {
   langOption = options.language ?? 'auto'
 
   on('session.start', async ($, e, next) => {
-    locale = (await $.env.get('LC_ALL')) || (await $.env.get('LANG')) || undefined
+    try {
+      locale = (await $.env.get('LC_ALL')) || (await $.env.get('LANG')) || undefined
+    } catch {
+      locale = undefined
+    }
+    // Chưa biết task nào (mod vừa cài / session mở lại): dựng lại từ lịch sử.
+    if (summarize({ ...EMPTY, ...(await read($, progress)) }).total === 0) {
+      try {
+        const history = await $.session.messages({})
+        const rebuilt = Array.isArray(history) ? replay(history) : EMPTY
+        if (summarize(rebuilt).total > 0) await update($, progress, () => rebuilt)
+      } catch {
+        // Không đọc được lịch sử: bắt đầu trống như trước.
+      }
+    }
     const p = { ...EMPTY, ...(await read($, progress)) }
     await $.command.register({ name: COMMAND, description: t(p).command })
     $.ui.status(label({ ...EMPTY, ...(await read($, progress)) }))
@@ -242,40 +305,8 @@ export const register: Register = (on, options) => {
   on('tool.call', async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError === true) return ran
-
-    const agent = e.agentId ?? MAIN
-    const pre = agent === MAIN ? '' : `${agent}:`
-
-    if (e.tool === 'TodoWrite') {
-      const steps = e.todos.map((t, i) => ({ id: `${pre}todo-${i}`, title: t.content, status: t.status }))
-      await set($, p => withList(p, agent, steps))
-    } else if (e.tool === 'TaskCreate') {
-      const r = ran.result as { task?: { id?: string } } | undefined
-      const id = `${pre}${r?.task?.id ?? Date.now()}`
-      const title = e.subject
-      await set($, p => {
-        const base = agent === MAIN && summarize(p).percent >= 100 ? EMPTY : p
-        return withList(base, agent, [...listOf(base, agent), { id, title, status: 'pending' }])
-      })
-    } else if (e.tool === 'TaskUpdate') {
-      const { status, subject } = e
-      const id = `${pre}${e.taskId}`
-      await set($, p => {
-        const list = listOf(p, agent)
-        const steps =
-          status === 'deleted'
-            ? list.filter(s => s.id !== id)
-            : list.map(s =>
-                s.id === id ? { ...s, title: subject ?? s.title, status: status ? asStatus(status) : s.status } : s,
-              )
-        return withList(p, agent, steps)
-      })
-    } else if (e.tool === WRAP_TOOL && agent === MAIN) {
-      await set($, finish)
-    } else if (e.tool === PLAN_TOOL) {
-      const args = e as unknown as Record<string, unknown>
-      await set($, p => withList(p, agent, applyPlan(listOf(p, agent), args, pre)))
-    }
+    const call: Call = { tool: e.tool, input: e as unknown as Record<string, unknown>, result: ran.result, agent: e.agentId ?? MAIN }
+    if (TRACKED.has(call.tool)) await set($, p => applyCall(p, call))
     return ran
   }).catch(($, e, next) => next(e))
 
@@ -301,13 +332,17 @@ export const register: Register = (on, options) => {
       const width = 8
       const filled = Math.round((percent / 100) * width)
       return (
-        <Box>
-          <Text color={color}>{'━'.repeat(filled)}</Text>
-          <Text dimColor>{'━'.repeat(width - filled)} </Text>
-          <Text bold>{fmt(percent)}%</Text>
-          <Text dimColor>{p.stopped ? ` ⏸ ${tr.stopped}` : ''} </Text>
-          <Button key="expand" plain dimColor label="□" onPress={setView('full')} />
-          {closeButton}
+        <Box justifyContent="space-between" width="100%">
+          <Box>
+            <Text color={color}>{'━'.repeat(filled)}</Text>
+            <Text dimColor>{'━'.repeat(width - filled)} </Text>
+            <Text bold>{fmt(percent)}%</Text>
+            <Text dimColor>{p.stopped ? ` ⏸ ${tr.stopped}` : ''}</Text>
+          </Box>
+          <Box gap={1}>
+            <Button key="expand" plain dimColor label="□" onPress={setView('full')} />
+            {closeButton}
+          </Box>
         </Box>
       )
     }
@@ -318,14 +353,18 @@ export const register: Register = (on, options) => {
       : ''
 
     return (
-      <Box flexDirection="column">
-        <Box>
-          <Text color={color}>{'━'.repeat(filledCells(percent))}</Text>
-          <Text dimColor>{'━'.repeat(BAR_WIDTH - filledCells(percent))} </Text>
-          <Text bold>{fmt(percent)}%</Text>
-          <Text dimColor> {tr.bigSteps(done, total)}{p.stopped ? ` · ⏸ ${tr.stopped}` : ''} </Text>
-          <Button key="minimize" plain dimColor label="−" onPress={setView('mini')} />
-          {closeButton}
+      <Box flexDirection="column" width="100%">
+        <Box justifyContent="space-between" width="100%">
+          <Box>
+            <Text color={color}>{'━'.repeat(filledCells(percent))}</Text>
+            <Text dimColor>{'━'.repeat(BAR_WIDTH - filledCells(percent))} </Text>
+            <Text bold>{fmt(percent)}%</Text>
+            <Text dimColor> {tr.bigSteps(done, total)}{p.stopped ? ` · ⏸ ${tr.stopped}` : ''}</Text>
+          </Box>
+          <Box gap={1}>
+            <Button key="minimize" plain dimColor label="−" onPress={setView('mini')} />
+            {closeButton}
+          </Box>
         </Box>
         {path.length && !p.stopped ? (
           <Text dimColor>

@@ -43,6 +43,7 @@ In the Claude desktop app: click **+** next to the prompt box → **Plugins** �
 - **Start bump**: a step that has just started counts 10% of its share, so the bar moves as soon as work begins, and never goes backwards.
 - **Cancel / changes**: a cancelled turn keeps its % and shows "Stopped"; adding or removing steps recomputes the %. A finished task stays at 100% until the next task list replaces it.
 - **Controls**: `−` minimize to one line, `□` expand, `✕` close. `/progress` shows it again; a new task list reopens it automatically.
+- **Picks up running tasks**: when the plugin loads into a session that already has a task list (installed mid-task, or a session reopened), it rebuilds the progress from that session's history.
 - **Languages**: en, vi, zh, ja, ko, th, fr, es, de, pt, id. Option `language` (default `auto`: the language of the task steps, then the system locale, then English).
 - **No token cost**: the plugin only reads tool calls and draws local UI; it adds nothing to prompts, the system prompt or tool results, and makes no network calls.
 

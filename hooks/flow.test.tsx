@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { replay, summarize } from './register'
+
 const BAND = { plugin: 'task-progress', component: 'AbovePrompt', props: { hasSurvey: false } } as const
 
 test('plan của desktop app → dải tiến độ', { options: { language: 'vi' } }, async ($, on) => {
@@ -41,6 +43,7 @@ const setup = async ($: any, on: any) => {
   on('command.run', () => ({ text: '' }))
   on('ui.toast', () => ({ value: undefined }))
   on('ui.status', () => ({ value: undefined }))
+  on('env.get', () => ({ value: undefined }))
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
 }
 const plan = (names: string[], doneCount: number) =>
@@ -140,4 +143,33 @@ test('task xong vẫn hiện 100% qua prompt mới, tới khi có task mới', {
   const b = await band($)
   expect(b.pct).toBe('0%')
   expect(b.meta).toContain('0/2')
+})
+
+test('mod nạp sau khi task đã chạy: dựng lại từ lịch sử session', { options: { language: 'vi' } }, async ($, on) => {
+  const use = (tool: string, input: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+    tool_use_id: `${tool}-${Math.random()}`, tool, input, ...extra,
+  })
+  const items = Array.from({ length: 12 }, (_, i) => ({ content: `Việc ${i + 1}`, status: i === 0 ? 'in_progress' : 'pending' }))
+  const history = [
+    { role: 'user', text: 'sửa lỗi kiểm thử lần 7', toolUses: [] },
+    { role: 'assistant', text: '', toolUses: [use('mcp__ccd_turn__update_plan', { items, scope: 'first_task' })] },
+    ...Array.from({ length: 11 }, () => ({ role: 'assistant', text: '', toolUses: [use('mcp__ccd_turn__update_plan', { advance: true }), use('Bash', { command: 'make test' })] })),
+    { role: 'assistant', text: '', toolUses: [use('TaskCreate', { subject: 'bỏ qua', description: '' }, { isError: true, text: 'lỗi' })] },
+  ]
+  on('session.messages', () => ({ value: history }) as any)
+  await setup($, on)
+  const b = await band($)
+  expect(b.pct).toBe('93%') // 11/12 + nấc bắt đầu việc 12 = 92.5 → 93
+  expect(b.meta).toContain('11/12')
+})
+
+test('dựng lại TaskCreate/TaskUpdate khi lịch sử chỉ lưu chữ', async () => {
+  const p = replay([
+    { toolUses: [{ tool: 'TaskCreate', input: { subject: 'A' }, text: 'Task #1 created successfully: A' }] },
+    { toolUses: [{ tool: 'TaskCreate', input: { subject: 'B' }, text: 'Task #2 created successfully: B' }] },
+    { toolUses: [{ tool: 'TaskUpdate', input: { taskId: '1', status: 'completed' } }] },
+    { toolUses: [{ tool: 'TaskUpdate', input: { taskId: '2', status: 'in_progress' } }] },
+  ])
+  expect(summarize(p).total).toBe(2)
+  expect(summarize(p).percent).toBe(55)
 })
