@@ -32,6 +32,10 @@ In the Claude desktop app: click **+** next to the prompt box → **Plugins** �
 - **Languages**: en, vi, zh, ja, ko, th, fr, es, de, pt, id. Option `language` (default `auto`: the language of the task steps, then the system locale, then English).
 - **No token cost**: the plugin only reads tool calls and draws local UI; it adds nothing to prompts, the system prompt or tool results, and makes no network calls.
 
+## For AI agents
+
+Agents can install, use and maintain this plugin on their own by following [AGENTS.md](AGENTS.md).
+
 ## License
 
 MIT © YuhTahn
