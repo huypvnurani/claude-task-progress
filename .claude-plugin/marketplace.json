@@ -1,0 +1,6 @@
+{
+  "name": "yuhtahn",
+  "description": "YuhTahn's Claude Code plugins",
+  "owner": { "name": "YuhTahn", "email": "gettesterinfo@gmail.com" },
+  "plugins": [{ "name": "task-progress", "source": "./" }]
+}

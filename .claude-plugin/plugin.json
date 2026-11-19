@@ -1,0 +1,33 @@
+{
+  "name": "task-progress",
+  "version": "0.2.0",
+  "description": "Shows the current task's progress % above the prompt: main steps split 100%, sub-steps split their parent's share. Multilingual.",
+  "types": "./types/index.d.ts",
+  "license": "MIT",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language / Ngôn ngữ",
+      "description": "auto = follow the language of the task steps, then the system locale",
+      "default": "auto",
+      "options": [
+        "auto",
+        "en",
+        "vi",
+        "zh",
+        "ja",
+        "ko",
+        "th",
+        "fr",
+        "es",
+        "de",
+        "pt",
+        "id"
+      ]
+    }
+  },
+  "author": {
+    "name": "YuhTahn",
+    "email": "gettesterinfo@gmail.com"
+  }
+}
