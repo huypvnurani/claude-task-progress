@@ -2,6 +2,20 @@
 
 A Claude Code plugin that shows the current task's progress above the prompt and on the status line: completed steps / total steps of Claude's task list (TodoWrite, TaskCreate/TaskUpdate, or the Claude desktop app's plan).
 
+> I made this small plugin because I needed it myself: I wanted to see how far along Claude is on a task.
+> Maybe you need it too. If so, you're welcome to grab it from the latest release:
+> https://github.com/huypvnurani/claude-task-progress/releases/latest
+>
+> Feedback and ideas are always appreciated.
+>
+> Mình làm plugin nhỏ này vì thấy cần cho cá nhân: muốn biết Claude đang làm tới đâu rồi.
+> Biết đâu bạn cũng cần. Nếu vậy, xin mời bạn tải về tại:
+> https://github.com/huypvnurani/claude-task-progress/releases/latest
+>
+> Mọi góp ý đều rất quý.
+>
+> — YuhTahn
+
 ```
 ━━━━━━━━━━━━──────── 58% (2/4 main steps)  −  ✕
 Now: Count files › 2.2 Count .js (this step 34% · 1/3 sub-steps)
