@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { summarize } from './register'
+import { dedupeRows, summarize } from './register'
 import type { Progress } from '../types'
 import { pickLang } from './i18n'
 
@@ -88,4 +88,14 @@ test('ngôn ngữ: tuỳ chọn → chữ trong bước → LANG → en', async 
   expect(pickLang('auto', '统计文件', undefined)).toBe('zh')
   expect(pickLang('auto', 'Count files', 'fr_FR.UTF-8')).toBe('fr')
   expect(pickLang('auto', 'Count files', undefined)).toBe('en')
+})
+
+test('duplicate rows of this mod collapse to one', () => {
+  const rows = [
+    { plugin: 'other', tree: 1 },
+    { plugin: 'task-progress', tree: 2 },
+    { plugin: 'task-progress@yuhtahn', tree: 3 },
+    { plugin: 'task-progress', tree: 4 },
+  ]
+  expect(dedupeRows(rows).map(r => r.tree)).toEqual([1, 2])
 })

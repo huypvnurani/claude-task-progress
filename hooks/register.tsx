@@ -228,6 +228,18 @@ export const replay = (messages: readonly { toolUses?: readonly { tool: string; 
 /** Lượt hiện tại đã đổi task list chưa. */
 let touched = false
 
+const OURS = /^task-progress(@.*)?$/i
+/** Bỏ các hàng trùng của mod này, giữ hàng đầu tiên và mọi hàng của plugin khác. */
+export function dedupeRows<R extends { plugin: string }>(rows: readonly R[]): R[] {
+  let seen = false
+  return rows.filter(r => {
+    if (!OURS.test(r.plugin)) return true
+    if (seen) return false
+    seen = true
+    return true
+  })
+}
+
 async function set($: EngineInterface, fn: (p: Progress) => Progress) {
   const before = summarize({ ...EMPTY, ...(await read($, progress)) })
   touched = true
@@ -309,6 +321,12 @@ export const register: Register = (on, options) => {
     if (TRACKED.has(call.tool)) await set($, p => applyCall(p, call))
     return ran
   }).catch(($, e, next) => next(e))
+
+  // Hai bản của mod cùng nạp (bản cài + bản dev, hay bản tổ chức + bản GitHub)
+  // thì mỗi bản vẽ một hàng: chỉ giữ hàng đầu tiên của Task-Progress.
+  on('ui.render', { component: 'AbovePromptList' }, async ($, e, next) =>
+    next({ ...e, props: { ...e.props, rows: dedupeRows(e.props.rows) } }),
+  ).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const p = { ...EMPTY, ...(await read($, progress)) }
