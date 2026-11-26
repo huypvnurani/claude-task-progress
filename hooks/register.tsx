@@ -322,7 +322,11 @@ export const register: Register = (on, options) => {
       }
     }
     const p = { ...EMPTY, ...(await read($, progress)) }
-    await $.command.register({ name: COMMAND, description: t(p).command })
+    try {
+      await $.command.register({ name: COMMAND, description: t(p).command })
+    } catch {
+      // Bản khác của mod (cài từ GitHub / tổ chức) đã đăng ký /progress: dùng chung lệnh đó.
+    }
     $.ui.status(label({ ...EMPTY, ...(await read($, progress)) }))
     return next(e)
   })
