@@ -21,6 +21,8 @@ A Claude Code plugin that shows the current task's progress above the prompt and
 Now: Count files › 2.2 Count .js (this step 34% · 1/3 sub-steps)
 ```
 
+![Task-Progress: where the bar shows and how to use it (Vietnamese)](docs/guide-vi.png)
+
 ## Install
 
 In Claude Code (terminal), at the prompt:
@@ -46,6 +48,22 @@ In the Claude desktop app: click **+** next to the prompt box → **Plugins** �
 - **Picks up running tasks**: when the plugin loads into a session that already has a task list (installed mid-task, or a session reopened), it rebuilds the progress from that session's history.
 - **Languages**: en, vi, zh, ja, ko, th, fr, es, de, pt, id. Option `language` (default `auto`: the language of the task steps, then the system locale, then English).
 - **No token cost**: the plugin only reads tool calls and draws local UI; it adds nothing to prompts, the system prompt or tool results, and makes no network calls.
+
+## Tiếng Việt
+
+Plugin cho Claude Code: hiện thanh % tiến độ của task ngay trên ô nhập và ở thanh trạng thái. Chạy hoàn toàn trên máy, không tốn token.
+
+**Cách dùng**
+
+1. Cài plugin, rồi mở lại session.
+2. Giao cho Claude một việc có nhiều bước. Thanh tự hiện khi Claude lập danh sách việc.
+3. Mỗi bước lớn chia đều %, bước con chia nhỏ phần của bước lớn đó. Vừa bắt đầu một bước là thanh nhích lên.
+4. Huỷ hoặc thêm bước thì % tự tính lại. Task xong giữ 100% tới khi có task mới.
+5. Nút `−` thu gọn, `□` mở rộng, `✕` đóng. Lỡ đóng thì gõ `/progress` để mở lại.
+
+Ngôn ngữ tự chọn theo nội dung các bước (tiếng Việt, Anh, Trung, Nhật, Hàn…), đổi được ở tuỳ chọn `language`.
+
+Cài: gõ `/plugin install task-progress --marketplace huypvnurani/claude-task-progress` vào ô chat của Claude Code, rồi mở lại session.
 
 ## For AI agents
 
