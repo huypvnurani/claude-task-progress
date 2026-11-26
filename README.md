@@ -43,6 +43,8 @@ In the Claude desktop app: click **+** next to the prompt box → **Plugins** �
 
 - **Nested %**: main steps split 100%; a main step's sub-steps (a subagent's task list started during that step, or indented / `-` / `2.1`-numbered lines under it) split that step's share. Rounded to whole numbers; 100% only when everything is done.
 - **Start bump**: a step that has just started counts 10% of its share, so the bar moves as soon as work begins, and never goes backwards.
+- **Moves while Claude works**: if Claude keeps working without ticking steps off, the bar creeps forward with each tool call inside the current step (slower and slower, never past that step), so a long step never looks frozen.
+- **Animated bar** in the desktop app: the fill slides to the new % and a light sweep runs while Claude is working. The terminal keeps the text bar.
 - **Cancel / changes**: a cancelled turn keeps its % and shows "Stopped"; adding or removing steps recomputes the %. A finished task stays at 100% until the next task list replaces it.
 - **Controls**: `−` minimize to one line, `□` expand, `✕` close. `/progress` shows it again; a new task list reopens it automatically.
 - **Picks up running tasks**: when the plugin loads into a session that already has a task list (installed mid-task, or a session reopened), it rebuilds the progress from that session's history.
@@ -58,6 +60,7 @@ Plugin cho Claude Code: hiện thanh % tiến độ của task ngay trên ô nh�
 1. Cài plugin, rồi mở lại session.
 2. Giao cho Claude một việc có nhiều bước. Thanh tự hiện khi Claude lập danh sách việc.
 3. Mỗi bước lớn chia đều %, bước con chia nhỏ phần của bước lớn đó. Vừa bắt đầu một bước là thanh nhích lên.
+   Claude làm lâu mà chưa đánh dấu bước thì thanh vẫn nhích dần trong bước đó (không vượt qua bước), trên app desktop thanh còn có hiệu ứng chạy.
 4. Huỷ hoặc thêm bước thì % tự tính lại. Task xong giữ 100% tới khi có task mới.
 5. Nút `−` thu gọn, `□` mở rộng, `✕` đóng. Lỡ đóng thì gõ `/progress` để mở lại.
 

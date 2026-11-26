@@ -9,6 +9,8 @@ export type Progress = {
   subs: Record<string, { parent: string | null; steps: Step[] }>
   /** Lượt bị huỷ (cancel) trước khi xong: thanh hiện "đã dừng" tới khi list đổi. */
   stopped?: boolean
+  /** Số lần Claude gọi lệnh kể từ khi bước đang làm bắt đầu: để thanh nhích dần. */
+  work?: number
 }
 
 declare module 'claude-code' {

@@ -173,3 +173,37 @@ test('dựng lại TaskCreate/TaskUpdate khi lịch sử chỉ lưu chữ', asyn
   expect(summarize(p).total).toBe(2)
   expect(summarize(p).percent).toBe(55)
 })
+
+test('Claude làm nhiều mà chưa đánh dấu bước → thanh nhích dần, không vượt bước', async ($, on) => {
+  await setup($, on)
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', items: plan(['A', 'B', 'C', 'D', 'E', 'F', 'G'], 0) } as any)
+  expect((await band($)).pct).toBe('1%')
+  for (let i = 0; i < 10; i++) await $.tool.call({ tool: 'Bash', command: 'ls' } as any)
+  const mid = Number((await band($)).pct!.replace('%', ''))
+  expect(mid).toBeGreaterThan(4)
+  for (let i = 0; i < 200; i++) await $.tool.call({ tool: 'Bash', command: 'ls' } as any)
+  const late = Number((await band($)).pct!.replace('%', ''))
+  expect(late).toBeGreaterThan(mid)
+  expect(late).toBeLessThan(14) // chưa tới mốc xong bước 1 (1/7 ≈ 14%)
+  expect((await band($)).meta).toContain('0/7')
+
+  // Đánh dấu cùng bước lại thì không tụt; sang bước mới thì vượt mốc 14%.
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', items: plan(['A', 'B', 'C', 'D', 'E', 'F', 'G'], 0) } as any)
+  expect(Number((await band($)).pct!.replace('%', ''))).toBe(late)
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', advance: true } as any)
+  expect((await band($)).pct).toBe('16%')
+})
+
+test('desktop vẽ thanh SVG động, terminal giữ thanh chữ', async ($, on) => {
+  await setup($, on)
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', items: plan(['A', 'B'], 1) } as any)
+  const desk = await $.ui.mount({ ...BAND, surface: 'desktop', props: { hasSurvey: false, isWorking: true } } as any)
+  const svg = await desk.find({ type: 'Svg' })
+  expect(svg?.props.source).toContain('<animate')
+  expect(svg?.props.source).toContain('repeatCount="indefinite"')
+  await desk.unmount()
+  const term = await $.ui.mount({ ...BAND, surface: 'terminal' } as any)
+  expect(await term.find({ type: 'Svg' })).toBeUndefined()
+  expect((await term.find({ type: 'Text', text: /━/ }))?.text).toContain('━')
+  await term.unmount()
+})
